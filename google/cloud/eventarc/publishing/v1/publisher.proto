@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,10 +18,13 @@ package google.cloud.eventarc.publishing.v1;
 
 import "google/api/annotations.proto";
 import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/cloud/eventarc/publishing/v1/cloud_event.proto";
 import "google/protobuf/any.proto";
 
 option csharp_namespace = "Google.Cloud.Eventarc.Publishing.V1";
-option go_package = "google.golang.org/genproto/googleapis/cloud/eventarc/publishing/v1;publisher";
+option go_package = "cloud.google.com/go/eventarc/publishing/apiv1/publishingpb;publishingpb";
 option java_multiple_files = true;
 option java_outer_classname = "PublisherProto";
 option java_package = "com.google.cloud.eventarc.publishing.v1";
@@ -54,10 +57,12 @@ option ruby_package = "Google::Cloud::Eventarc::Publishing::V1";
 // Publisher allows an event provider to publish events to Eventarc.
 service Publisher {
   option (google.api.default_host) = "eventarcpublishing.googleapis.com";
-  option (google.api.oauth_scopes) = "https://www.googleapis.com/auth/cloud-platform";
+  option (google.api.oauth_scopes) =
+      "https://www.googleapis.com/auth/cloud-platform";
 
   // Publish events to a ChannelConnection in a partner's project.
-  rpc PublishChannelConnectionEvents(PublishChannelConnectionEventsRequest) returns (PublishChannelConnectionEventsResponse) {
+  rpc PublishChannelConnectionEvents(PublishChannelConnectionEventsRequest)
+      returns (PublishChannelConnectionEventsResponse) {
     option (google.api.http) = {
       post: "/v1/{channel_connection=projects/*/locations/*/channelConnections/*}:publishEvents"
       body: "*"
@@ -71,6 +76,14 @@ service Publisher {
       body: "*"
     };
   }
+
+  // Publish events to a message bus.
+  rpc Publish(PublishRequest) returns (PublishResponse) {
+    option (google.api.http) = {
+      post: "/v1/{message_bus=projects/*/locations/*/messageBuses/*}:publish"
+      body: "*"
+    };
+  }
 }
 
 // The request message for the PublishChannelConnectionEvents method.
@@ -80,13 +93,19 @@ message PublishChannelConnectionEventsRequest {
   string channel_connection = 1;
 
   // The CloudEvents v1.0 events to publish. No other types are allowed.
+  // If this field is set, then the `text_events` fields must not be set.
   repeated google.protobuf.Any events = 2;
+
+  // The text representation of events to publish.
+  // CloudEvent v1.0 in JSON format is the only allowed type. Refer to
+  // https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/formats/json-format.md
+  // for specification.
+  // If this field is set, then the `events` fields must not be set.
+  repeated string text_events = 3;
 }
 
 // The response message for the PublishChannelConnectionEvents method.
-message PublishChannelConnectionEventsResponse {
-
-}
+message PublishChannelConnectionEventsResponse {}
 
 // The request message for the PublishEvents method.
 message PublishEventsRequest {
@@ -95,10 +114,43 @@ message PublishEventsRequest {
   string channel = 1;
 
   // The CloudEvents v1.0 events to publish. No other types are allowed.
+  // If this field is set, then the `text_events` fields must not be set.
   repeated google.protobuf.Any events = 2;
+
+  // The text representation of events to publish.
+  // CloudEvent v1.0 in JSON format is the only allowed type. Refer to
+  // https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/formats/json-format.md
+  // for specification.
+  // If this field is set, then the `events` fields must not be set.
+  repeated string text_events = 3;
 }
 
 // The response message for the PublishEvents method.
-message PublishEventsResponse {
+message PublishEventsResponse {}
 
+// The request message for the Publish method.
+message PublishRequest {
+  // Required. The full name of the message bus to publish events to. Format:
+  // `projects/{project}/locations/{location}/messageBuses/{messageBus}`.
+  string message_bus = 1 [(google.api.field_behavior) = REQUIRED];
+
+  oneof format {
+    // The Protobuf format of the CloudEvent being published. Specification can
+    // be found here:
+    // https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/formats/protobuf-format.md
+    CloudEvent proto_message = 2;
+
+    // The JSON format of the CloudEvent being published. Specification can be
+    // found here:
+    // https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/formats/json-format.md
+    string json_message = 3;
+
+    // The Avro format of the CloudEvent being published. Specification can
+    // be found here:
+    // https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/formats/avro-format.md
+    bytes avro_message = 4;
+  }
 }
+
+// The response message for the Publish method.
+message PublishResponse {}

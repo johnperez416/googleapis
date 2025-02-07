@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 option csharp_namespace = "Google.Cloud.Datastream.V1";
-option go_package = "google.golang.org/genproto/googleapis/cloud/datastream/v1;datastream";
+option go_package = "cloud.google.com/go/datastream/apiv1/datastreampb;datastreampb";
 option java_multiple_files = true;
 option java_outer_classname = "DatastreamResourcesProto";
 option java_package = "com.google.cloud.datastream.v1";
@@ -34,6 +34,7 @@ option (google.api.resource_definition) = {
 };
 
 // Oracle database profile.
+// Next ID: 10.
 message OracleProfile {
   // Required. Hostname for the Oracle connection.
   string hostname = 1 [(google.api.field_behavior) = REQUIRED];
@@ -44,17 +45,59 @@ message OracleProfile {
   // Required. Username for the Oracle connection.
   string username = 3 [(google.api.field_behavior) = REQUIRED];
 
-  // Required. Password for the Oracle connection.
-  string password = 4 [(google.api.field_behavior) = REQUIRED];
+  // Optional. Password for the Oracle connection. Mutually exclusive with the
+  // `secret_manager_stored_password` field.
+  string password = 4 [(google.api.field_behavior) = OPTIONAL];
 
   // Required. Database for the Oracle connection.
   string database_service = 5 [(google.api.field_behavior) = REQUIRED];
 
   // Connection string attributes
   map<string, string> connection_attributes = 6;
+
+  // Optional. SSL configuration for the Oracle connection.
+  OracleSslConfig oracle_ssl_config = 7
+      [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. Configuration for Oracle ASM connection.
+  OracleAsmConfig oracle_asm_config = 8
+      [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. A reference to a Secret Manager resource name storing the Oracle
+  // connection password. Mutually exclusive with the `password` field.
+  string secret_manager_stored_password = 9
+      [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Configuration for Oracle Automatic Storage Management (ASM) connection.
+// .
+message OracleAsmConfig {
+  // Required. Hostname for the Oracle ASM connection.
+  string hostname = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Required. Port for the Oracle ASM connection.
+  int32 port = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // Required. Username for the Oracle ASM connection.
+  string username = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. Password for the Oracle ASM connection.
+  string password = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // Required. ASM service name for the Oracle ASM connection.
+  string asm_service = 5 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. Connection string attributes
+  map<string, string> connection_attributes = 6
+      [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. SSL configuration for the Oracle connection.
+  OracleSslConfig oracle_ssl_config = 7
+      [(google.api.field_behavior) = OPTIONAL];
 }
 
 // MySQL database profile.
+// Next ID: 7.
 message MysqlProfile {
   // Required. Hostname for the MySQL connection.
   string hostname = 1 [(google.api.field_behavior) = REQUIRED];
@@ -65,9 +108,10 @@ message MysqlProfile {
   // Required. Username for the MySQL connection.
   string username = 3 [(google.api.field_behavior) = REQUIRED];
 
-  // Required. Input only. Password for the MySQL connection.
+  // Optional. Input only. Password for the MySQL connection. Mutually exclusive
+  // with the `secret_manager_stored_password` field.
   string password = 4 [
-    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = OPTIONAL,
     (google.api.field_behavior) = INPUT_ONLY
   ];
 
@@ -86,10 +130,37 @@ message PostgresqlProfile {
   // Required. Username for the PostgreSQL connection.
   string username = 3 [(google.api.field_behavior) = REQUIRED];
 
-  // Required. Password for the PostgreSQL connection.
-  string password = 4 [(google.api.field_behavior) = REQUIRED];
+  // Optional. Password for the PostgreSQL connection. Mutually exclusive with
+  // the `secret_manager_stored_password` field.
+  string password = 4 [(google.api.field_behavior) = OPTIONAL];
 
   // Required. Database for the PostgreSQL connection.
+  string database = 5 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. SSL configuration for the PostgreSQL connection.
+  // In case PostgresqlSslConfig is not set, the connection will use the default
+  // SSL mode, which is `prefer` (i.e. this mode will only use encryption if
+  // enabled from database side, otherwise will use unencrypted communication)
+  PostgresqlSslConfig ssl_config = 7 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// SQLServer database profile.
+// Next ID: 8.
+message SqlServerProfile {
+  // Required. Hostname for the SQLServer connection.
+  string hostname = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Port for the SQLServer connection, default value is 1433.
+  int32 port = 2;
+
+  // Required. Username for the SQLServer connection.
+  string username = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. Password for the SQLServer connection. Mutually exclusive with
+  // the `secret_manager_stored_password` field.
+  string password = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // Required. Database for the SQLServer connection.
   string database = 5 [(google.api.field_behavior) = REQUIRED];
 }
 
@@ -103,14 +174,12 @@ message GcsProfile {
 }
 
 // BigQuery warehouse profile.
-message BigQueryProfile {
+message BigQueryProfile {}
 
-}
-
-// Static IP address connectivity.
-message StaticServiceIpConnectivity {
-
-}
+// Static IP address connectivity. Used when the source database is configured
+// to allow incoming connections from the Datastream public IP addresses
+// for the region specified in the connection profile.
+message StaticServiceIpConnectivity {}
 
 // Forward SSH Tunnel connectivity.
 message ForwardSshTunnelConnectivity {
@@ -177,14 +246,19 @@ message PrivateConnection {
     FAILED_TO_DELETE = 5;
   }
 
-  // Output only. The resource's name.
-  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // Output only. Identifier. The resource's name.
+  string name = 1 [
+    (google.api.field_behavior) = IDENTIFIER,
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
 
   // Output only. The create time of the resource.
-  google.protobuf.Timestamp create_time = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp create_time = 2
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Output only. The update time of the resource.
-  google.protobuf.Timestamp update_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp update_time = 3
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Labels.
   map<string, string> labels = 4;
@@ -195,7 +269,8 @@ message PrivateConnection {
   // Output only. The state of the Private Connection.
   State state = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // Output only. In case of error, the details of the error in a user-friendly format.
+  // Output only. In case of error, the details of the error in a user-friendly
+  // format.
   Error error = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // VPC Peering Config.
@@ -222,14 +297,19 @@ message Route {
     pattern: "projects/{project}/locations/{location}/privateConnections/{private_connection}/routes/{route}"
   };
 
-  // Output only. The resource's name.
-  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // Output only. Identifier. The resource's name.
+  string name = 1 [
+    (google.api.field_behavior) = IDENTIFIER,
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
 
   // Output only. The create time of the resource.
-  google.protobuf.Timestamp create_time = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp create_time = 2
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Output only. The update time of the resource.
-  google.protobuf.Timestamp update_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp update_time = 3
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Labels.
   map<string, string> labels = 4;
@@ -262,12 +342,84 @@ message MysqlSslConfig {
   // Output only. Indicates whether the client_certificate field is set.
   bool client_certificate_set = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // Input only. PEM-encoded certificate of the CA that signed the source database
-  // server's certificate.
+  // Input only. PEM-encoded certificate of the CA that signed the source
+  // database server's certificate.
   string ca_certificate = 5 [(google.api.field_behavior) = INPUT_ONLY];
 
   // Output only. Indicates whether the ca_certificate field is set.
   bool ca_certificate_set = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// Oracle SSL configuration information.
+message OracleSslConfig {
+  // Input only. PEM-encoded certificate of the CA that signed the source
+  // database server's certificate.
+  string ca_certificate = 1 [(google.api.field_behavior) = INPUT_ONLY];
+
+  // Output only. Indicates whether the ca_certificate field has been set for
+  // this Connection-Profile.
+  bool ca_certificate_set = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// PostgreSQL SSL configuration information.
+message PostgresqlSslConfig {
+  // Message represents the option where Datastream will enforce the encryption
+  // and authenticate the server identity. ca_certificate must be set if user
+  // selects this option.
+  message ServerVerification {
+    // Required. Input only. PEM-encoded server root CA certificate.
+    string ca_certificate = 1 [
+      (google.api.field_behavior) = INPUT_ONLY,
+      (google.api.field_behavior) = REQUIRED
+    ];
+  }
+
+  // Message represents the option where Datastream will enforce the encryption
+  // and authenticate the server identity as well as the client identity.
+  // ca_certificate, client_certificate and client_key must be set if user
+  // selects this option.
+  message ServerAndClientVerification {
+    // Required. Input only. PEM-encoded certificate used by the source database
+    // to authenticate the client identity (i.e., the Datastream's identity).
+    // This certificate is signed by either a root certificate trusted by the
+    // server or one or more intermediate certificates (which is stored with the
+    // leaf certificate) to link the this certificate to the trusted root
+    // certificate.
+    string client_certificate = 1 [
+      (google.api.field_behavior) = INPUT_ONLY,
+      (google.api.field_behavior) = REQUIRED
+    ];
+
+    // Required. Input only. PEM-encoded private key associated with the client
+    // certificate. This value will be used during the SSL/TLS handshake,
+    // allowing the PostgreSQL server to authenticate the client's identity,
+    // i.e. identity of the Datastream.
+    string client_key = 2 [
+      (google.api.field_behavior) = INPUT_ONLY,
+      (google.api.field_behavior) = REQUIRED
+    ];
+
+    // Required. Input only. PEM-encoded server root CA certificate.
+    string ca_certificate = 3 [
+      (google.api.field_behavior) = INPUT_ONLY,
+      (google.api.field_behavior) = REQUIRED
+    ];
+  }
+
+  // The encryption settings available for PostgreSQL connection profiles.
+  // This captures various SSL mode supported by PostgreSQL, which includes
+  // TLS encryption with server verification, TLS encryption with both server
+  // and client verification and no TLS encryption.
+  oneof encryption_setting {
+    //  If this field is set, the communication will be encrypted with TLS
+    //  encryption and the server identity will be authenticated.
+    ServerVerification server_verification = 1;
+
+    // If this field is set, the communication will be encrypted with TLS
+    // encryption and both the server identity and the client identity will be
+    // authenticated.
+    ServerAndClientVerification server_and_client_verification = 2;
+  }
 }
 
 // A set of reusable connection configurations to be used as a source or
@@ -278,14 +430,19 @@ message ConnectionProfile {
     pattern: "projects/{project}/locations/{location}/connectionProfiles/{connection_profile}"
   };
 
-  // Output only. The resource's name.
-  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // Output only. Identifier. The resource's name.
+  string name = 1 [
+    (google.api.field_behavior) = IDENTIFIER,
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
 
   // Output only. The create time of the resource.
-  google.protobuf.Timestamp create_time = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp create_time = 2
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Output only. The update time of the resource.
-  google.protobuf.Timestamp update_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp update_time = 3
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Labels.
   map<string, string> labels = 4;
@@ -309,6 +466,9 @@ message ConnectionProfile {
 
     // PostgreSQL Connection Profile configuration.
     PostgresqlProfile postgresql_profile = 104;
+
+    // SQLServer Connection Profile configuration.
+    SqlServerProfile sql_server_profile = 105;
   }
 
   // Connectivity options used to establish a connection to the profile.
@@ -383,13 +543,37 @@ message OracleRdbms {
 // Oracle data source configuration
 message OracleSourceConfig {
   // Configuration to drop large object values.
-  message DropLargeObjects {
-
-  }
+  message DropLargeObjects {}
 
   // Configuration to stream large object values.
-  message StreamLargeObjects {
+  message StreamLargeObjects {}
 
+  // Configuration to use LogMiner CDC method.
+  message LogMiner {}
+
+  // Configuration to use Binary Log Parser CDC technique.
+  message BinaryLogParser {
+    // Configuration to use Oracle ASM to access the log files.
+    message OracleAsmLogFileAccess {}
+
+    // Configuration to specify the Oracle directories to access the log files.
+    message LogFileDirectories {
+      // Required. Oracle directory for online logs.
+      string online_log_directory = 1 [(google.api.field_behavior) = REQUIRED];
+
+      // Required. Oracle directory for archived logs.
+      string archived_log_directory = 2
+          [(google.api.field_behavior) = REQUIRED];
+    }
+
+    // Configuration to specify how the log file should be accessed.
+    oneof log_file_access {
+      // Use Oracle ASM.
+      OracleAsmLogFileAccess oracle_asm_log_file_access = 1;
+
+      // Use Oracle directories.
+      LogFileDirectories log_file_directories = 2;
+    }
   }
 
   // Oracle objects to include in the stream.
@@ -398,9 +582,13 @@ message OracleSourceConfig {
   // Oracle objects to exclude from the stream.
   OracleRdbms exclude_objects = 2;
 
-  // Maximum number of concurrent CDC tasks. The number should be non negative.
-  // If not set (or set to 0), the system's default value will be used.
+  // Maximum number of concurrent CDC tasks. The number should be non-negative.
+  // If not set (or set to 0), the system's default value is used.
   int32 max_concurrent_cdc_tasks = 3;
+
+  // Maximum number of concurrent backfill tasks. The number should be
+  // non-negative. If not set (or set to 0), the system's default value is used.
+  int32 max_concurrent_backfill_tasks = 4;
 
   // The configuration for handle Oracle large objects.
   oneof large_objects_handling {
@@ -409,6 +597,15 @@ message OracleSourceConfig {
 
     // Stream large object values.
     StreamLargeObjects stream_large_objects = 102;
+  }
+
+  // Configuration to select the CDC method.
+  oneof cdc_method {
+    // Use LogMiner.
+    LogMiner log_miner = 103;
+
+    // Use Binary Log Parser.
+    BinaryLogParser binary_log_parser = 104;
   }
 }
 
@@ -473,14 +670,105 @@ message PostgresqlSourceConfig {
   // PostgreSQL objects to exclude from the stream.
   PostgresqlRdbms exclude_objects = 2;
 
-  // Required. The name of the logical replication slot that's configured with the
-  // pgoutput plugin.
-  string replication_slot = 3 [(google.api.field_behavior) = REQUIRED];
+  // Required. Immutable. The name of the logical replication slot that's
+  // configured with the pgoutput plugin.
+  string replication_slot = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
 
-  // Required. The name of the publication that includes the set of all tables that are
-  // defined in the stream's include_objects.
+  // Required. The name of the publication that includes the set of all tables
+  // that are defined in the stream's include_objects.
   string publication = 4 [(google.api.field_behavior) = REQUIRED];
+
+  // Maximum number of concurrent backfill tasks. The number should be non
+  // negative. If not set (or set to 0), the system's default value will be
+  // used.
+  int32 max_concurrent_backfill_tasks = 5;
 }
+
+// SQLServer Column.
+message SqlServerColumn {
+  // Column name.
+  string column = 1;
+
+  // The SQLServer data type.
+  string data_type = 2;
+
+  // Column length.
+  int32 length = 3;
+
+  // Column precision.
+  int32 precision = 4;
+
+  // Column scale.
+  int32 scale = 5;
+
+  // Whether or not the column represents a primary key.
+  bool primary_key = 6;
+
+  // Whether or not the column can accept a null value.
+  bool nullable = 7;
+
+  // The ordinal position of the column in the table.
+  int32 ordinal_position = 8;
+}
+
+// SQLServer table.
+message SqlServerTable {
+  // Table name.
+  string table = 1;
+
+  // SQLServer columns in the schema.
+  // When unspecified as part of include/exclude objects,
+  // includes/excludes everything.
+  repeated SqlServerColumn columns = 2;
+}
+
+// SQLServer schema.
+message SqlServerSchema {
+  // Schema name.
+  string schema = 1;
+
+  // Tables in the schema.
+  repeated SqlServerTable tables = 2;
+}
+
+// SQLServer database structure.
+message SqlServerRdbms {
+  // SQLServer schemas in the database server.
+  repeated SqlServerSchema schemas = 1;
+}
+
+// SQLServer data source configuration
+message SqlServerSourceConfig {
+  // SQLServer objects to include in the stream.
+  SqlServerRdbms include_objects = 1;
+
+  // SQLServer objects to exclude from the stream.
+  SqlServerRdbms exclude_objects = 2;
+
+  // Max concurrent CDC tasks.
+  int32 max_concurrent_cdc_tasks = 3;
+
+  // Max concurrent backfill tasks.
+  int32 max_concurrent_backfill_tasks = 4;
+
+  // Configuration to select the CDC read method for the stream.
+  oneof cdc_method {
+    // CDC reader reads from transaction logs.
+    SqlServerTransactionLogs transaction_logs = 101;
+
+    // CDC reader reads from change tables.
+    SqlServerChangeTables change_tables = 102;
+  }
+}
+
+// Configuration to use Transaction Logs CDC read method.
+message SqlServerTransactionLogs {}
+
+// Configuration to use Change Tables CDC read method.
+message SqlServerChangeTables {}
 
 // MySQL Column.
 message MysqlColumn {
@@ -505,6 +793,12 @@ message MysqlColumn {
 
   // The ordinal position of the column in the table.
   int32 ordinal_position = 7;
+
+  // Column precision.
+  int32 precision = 8;
+
+  // Column scale.
+  int32 scale = 9;
 }
 
 // MySQL table.
@@ -535,6 +829,12 @@ message MysqlRdbms {
 
 // MySQL source configuration
 message MysqlSourceConfig {
+  // Use Binary log position based replication.
+  message BinaryLogPosition {}
+
+  // Use GTID based replication.
+  message Gtid {}
+
   // MySQL objects to retrieve from the source.
   MysqlRdbms include_objects = 1;
 
@@ -544,6 +844,20 @@ message MysqlSourceConfig {
   // Maximum number of concurrent CDC tasks. The number should be non negative.
   // If not set (or set to 0), the system's default value will be used.
   int32 max_concurrent_cdc_tasks = 3;
+
+  // Maximum number of concurrent backfill tasks. The number should be non
+  // negative. If not set (or set to 0), the system's default value will be
+  // used.
+  int32 max_concurrent_backfill_tasks = 4;
+
+  // The CDC method to use for the stream.
+  oneof cdc_method {
+    // Use Binary log position based replication.
+    BinaryLogPosition binary_log_position = 101;
+
+    // Use GTID based replication.
+    Gtid gtid = 102;
+  }
 }
 
 // The configuration of the stream source.
@@ -567,13 +881,14 @@ message SourceConfig {
 
     // PostgreSQL data source configuration.
     PostgresqlSourceConfig postgresql_source_config = 102;
+
+    // SQLServer data source configuration.
+    SqlServerSourceConfig sql_server_source_config = 103;
   }
 }
 
 // AVRO file format configuration.
-message AvroFileFormat {
-
-}
+message AvroFileFormat {}
 
 // JSON file format configuration.
 message JsonFileFormat {
@@ -617,7 +932,8 @@ message GcsDestinationConfig {
   int32 file_rotation_mb = 2;
 
   // The maximum duration for which new events are added before a file is
-  // closed and a new file is created.
+  // closed and a new file is created. Values within the range of 15-60 seconds
+  // are allowed.
   google.protobuf.Duration file_rotation_interval = 3;
 
   // File Format that the data should be written in.
@@ -630,9 +946,13 @@ message GcsDestinationConfig {
   }
 }
 
+// BigQuery destination configuration
 message BigQueryDestinationConfig {
   // A single target dataset to which all data will be streamed.
   message SingleTargetDataset {
+    // The dataset ID of the target dataset.
+    // DatasetIds allowed characters:
+    // https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#datasetreference.
     string dataset_id = 1;
   }
 
@@ -661,8 +981,17 @@ message BigQueryDestinationConfig {
       string kms_key_name = 3;
     }
 
+    // The dataset template to use for dynamic dataset creation.
     DatasetTemplate dataset_template = 2;
   }
+
+  // AppendOnly mode defines that all changes to a table will be written to the
+  // destination table.
+  message AppendOnly {}
+
+  // Merge mode defines that all changes to a table will be merged at the
+  // destination table.
+  message Merge {}
 
   // Target dataset(s) configuration.
   oneof dataset_config {
@@ -678,6 +1007,14 @@ message BigQueryDestinationConfig {
   // future, but existing tables will not be impacted. Lower values mean that
   // queries will return fresher data, but may result in higher cost.
   google.protobuf.Duration data_freshness = 300;
+
+  oneof write_mode {
+    // The standard mode
+    Merge merge = 301;
+
+    // Append only mode
+    AppendOnly append_only = 302;
+  }
 }
 
 // The configuration of the stream destination.
@@ -755,22 +1092,28 @@ message Stream {
 
       // PostgreSQL data source objects to avoid backfilling.
       PostgresqlRdbms postgresql_excluded_objects = 3;
+
+      // SQLServer data source objects to avoid backfilling
+      SqlServerRdbms sql_server_excluded_objects = 4;
     }
   }
 
   // Backfill strategy to disable automatic backfill for the Stream's objects.
-  message BackfillNoneStrategy {
+  message BackfillNoneStrategy {}
 
-  }
-
-  // Output only. The stream's name.
-  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // Output only. Identifier. The stream's name.
+  string name = 1 [
+    (google.api.field_behavior) = IDENTIFIER,
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
 
   // Output only. The creation time of the stream.
-  google.protobuf.Timestamp create_time = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp create_time = 2
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Output only. The last update time of the stream.
-  google.protobuf.Timestamp update_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp update_time = 3
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Labels.
   map<string, string> labels = 4;
@@ -782,7 +1125,8 @@ message Stream {
   SourceConfig source_config = 6 [(google.api.field_behavior) = REQUIRED];
 
   // Required. Destination connection profile configuration.
-  DestinationConfig destination_config = 7 [(google.api.field_behavior) = REQUIRED];
+  DestinationConfig destination_config = 7
+      [(google.api.field_behavior) = REQUIRED];
 
   // The state of the stream.
   State state = 8;
@@ -804,7 +1148,13 @@ message Stream {
   // If provided, it will be used to encrypt the data.
   // If left blank, data will be encrypted using an internal Stream-specific
   // encryption key provisioned through KMS.
-  optional string customer_managed_encryption_key = 10 [(google.api.field_behavior) = IMMUTABLE];
+  optional string customer_managed_encryption_key = 10
+      [(google.api.field_behavior) = IMMUTABLE];
+
+  // Output only. If the stream was recovered, the time of the last recovery.
+  // Note: This field is currently experimental.
+  google.protobuf.Timestamp last_recovery_time = 13
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 }
 
 // A specific stream object (e.g a specific DB table).
@@ -814,14 +1164,19 @@ message StreamObject {
     pattern: "projects/{project}/locations/{location}/streams/{stream}/objects/{object}"
   };
 
-  // Output only. The object resource's name.
-  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // Output only. Identifier. The object resource's name.
+  string name = 1 [
+    (google.api.field_behavior) = IDENTIFIER,
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
 
   // Output only. The creation time of the object.
-  google.protobuf.Timestamp create_time = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp create_time = 2
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Output only. The last update time of the object.
-  google.protobuf.Timestamp update_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp update_time = 3
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Required. Display name.
   string display_name = 5 [(google.api.field_behavior) = REQUIRED];
@@ -865,6 +1220,15 @@ message SourceObjectIdentifier {
     string table = 2 [(google.api.field_behavior) = REQUIRED];
   }
 
+  // SQLServer data source object identifier.
+  message SqlServerObjectIdentifier {
+    // Required. The schema name.
+    string schema = 1 [(google.api.field_behavior) = REQUIRED];
+
+    // Required. The table name.
+    string table = 2 [(google.api.field_behavior) = REQUIRED];
+  }
+
   // The identifier for an object in the data source.
   oneof source_identifier {
     // Oracle data source object identifier.
@@ -875,6 +1239,9 @@ message SourceObjectIdentifier {
 
     // PostgreSQL data source object identifier.
     PostgresqlObjectIdentifier postgresql_identifier = 3;
+
+    // SQLServer data source object identifier.
+    SqlServerObjectIdentifier sql_server_identifier = 4;
   }
 }
 
@@ -923,17 +1290,19 @@ message BackfillJob {
     MANUAL = 2;
   }
 
-  // Backfill job state.
-  State state = 1;
+  // Output only. Backfill job state.
+  State state = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Backfill job's triggering reason.
   Trigger trigger = 2;
 
   // Output only. Backfill job's start time.
-  google.protobuf.Timestamp last_start_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp last_start_time = 3
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Output only. Backfill job's end time.
-  google.protobuf.Timestamp last_end_time = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp last_end_time = 4
+      [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Output only. Errors which caused the backfill job to fail.
   repeated Error errors = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
@@ -980,13 +1349,16 @@ message Validation {
 
     // Validation passed.
     PASSED = 3;
+
+    // Validation executed with warnings.
+    WARNING = 4;
   }
 
   // A short description of the validation.
   string description = 1;
 
-  // Validation execution status.
-  State state = 2;
+  // Output only. Validation execution status.
+  State state = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // Messages reflecting the validation results.
   repeated ValidationMessage message = 3;
@@ -1020,4 +1392,68 @@ message ValidationMessage {
 
   // A custom code identifying this specific message.
   string code = 4;
+}
+
+// The strategy that the stream uses for CDC replication.
+message CdcStrategy {
+  // CDC strategy to start replicating from the most recent position in the
+  // source.
+  message MostRecentStartPosition {}
+
+  // CDC strategy to resume replication from the next available position in the
+  // source.
+  message NextAvailableStartPosition {}
+
+  // CDC strategy to start replicating from a specific position in the source.
+  message SpecificStartPosition {
+    oneof position {
+      // MySQL specific log position to start replicating from.
+      MysqlLogPosition mysql_log_position = 101;
+
+      // Oracle SCN to start replicating from.
+      OracleScnPosition oracle_scn_position = 102;
+
+      // SqlServer LSN to start replicating from.
+      SqlServerLsnPosition sql_server_lsn_position = 103;
+    }
+  }
+
+  // The position to start reading from when starting, resuming, or recovering
+  // the stream.
+  // If not set, the system's default value will be used.
+  oneof start_position {
+    // Optional. Start replicating from the most recent position in the source.
+    MostRecentStartPosition most_recent_start_position = 101
+        [(google.api.field_behavior) = OPTIONAL];
+
+    // Optional. Resume replication from the next available position in the
+    // source.
+    NextAvailableStartPosition next_available_start_position = 102
+        [(google.api.field_behavior) = OPTIONAL];
+
+    // Optional. Start replicating from a specific position in the source.
+    SpecificStartPosition specific_start_position = 103
+        [(google.api.field_behavior) = OPTIONAL];
+  }
+}
+
+// SQL Server LSN position
+message SqlServerLsnPosition {
+  // Required. Log sequence number (LSN) from where Logs will be read
+  string lsn = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Oracle SCN position
+message OracleScnPosition {
+  // Required. SCN number from where Logs will be read
+  int64 scn = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// MySQL log position
+message MysqlLogPosition {
+  // Required. The binary log file name.
+  string log_file = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. The position within the binary log file. Default is head of file.
+  optional int32 log_position = 2 [(google.api.field_behavior) = OPTIONAL];
 }
